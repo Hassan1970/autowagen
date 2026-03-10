@@ -1,0 +1,32 @@
+[09-Mar-2026 04:41:14 Africa/Johannesburg] PHP Deprecated:  htmlspecialchars(): Passing null to parameter #1 ($string) of type string is deprecated in /home/ahnwebde/public_html/vehicle_stripping_edit.php on line 170
+[09-Mar-2026 04:41:14 Africa/Johannesburg] PHP Deprecated:  htmlspecialchars(): Passing null to parameter #1 ($string) of type string is deprecated in /home/ahnwebde/public_html/vehicle_stripping_edit.php on line 176
+[09-Mar-2026 08:22:28 Africa/Johannesburg] PHP Deprecated:  number_format(): Passing null to parameter #1 ($num) of type float is deprecated in /home/ahnwebde/public_html/popup_third_party_parts.php on line 101
+[09-Mar-2026 08:22:28 Africa/Johannesburg] PHP Deprecated:  number_format(): Passing null to parameter #1 ($num) of type float is deprecated in /home/ahnwebde/public_html/popup_third_party_parts.php on line 101
+[09-Mar-2026 08:22:28 Africa/Johannesburg] PHP Deprecated:  number_format(): Passing null to parameter #1 ($num) of type float is deprecated in /home/ahnwebde/public_html/popup_third_party_parts.php on line 101
+[09-Mar-2026 09:55:40 Africa/Johannesburg] PHP Fatal error:  Uncaught mysqli_sql_exception: Unknown column 'location' in 'SELECT' in /home/ahnwebde/public_html/inventory.php:178
+Stack trace:
+#0 /home/ahnwebde/public_html/inventory.php(178): mysqli->query()
+#1 {main}
+  thrown in /home/ahnwebde/public_html/inventory.php on line 178
+[09-Mar-2026 09:55:48 Africa/Johannesburg] PHP Fatal error:  Uncaught mysqli_sql_exception: Unknown column 'location' in 'SELECT' in /home/ahnwebde/public_html/inventory.php:178
+Stack trace:
+#0 /home/ahnwebde/public_html/inventory.php(178): mysqli->query()
+#1 {main}
+  thrown in /home/ahnwebde/public_html/inventory.php on line 178
+[09-Mar-2026 09:55:52 Africa/Johannesburg] PHP Fatal error:  Uncaught mysqli_sql_exception: Unknown column 'location' in 'SELECT' in /home/ahnwebde/public_html/inventory.php:178
+Stack trace:
+#0 /home/ahnwebde/public_html/inventory.php(178): mysqli->query()
+#1 {main}
+  thrown in /home/ahnwebde/public_html/inventory.php on line 178
+[09-Mar-2026 11:35:02 Africa/Johannesburg] PHP Fatal error:  Uncaught mysqli_sql_exception: Table 'ahnwebde_autowagen_epc_clean.oem_purchases' doesn't exist in /home/ahnwebde/public_html/oem_purchases_list.php:15
+Stack trace:
+#0 /home/ahnwebde/public_html/oem_purchases_list.php(15): mysqli->query()
+#1 {main}
+  thrown in /home/ahnwebde/public_html/oem_purchases_list.php on line 15
+[09-Mar-2026 21:58:21 Africa/Johannesburg] PHP Fatal error:  Uncaught mysqli_sql_exception: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'ORDER BY name ASC' at line 4 in /home/ahnwebde/public_html/vehicle_stripping_edit.php:30
+Stack trace:
+#0 /home/ahnwebde/public_html/vehicle_stripping_edit.php(30): mysqli->query()
+#1 {main}
+  thrown in /home/ahnwebde/public_html/vehicle_stripping_edit.php on line 30
+[10-Mar-2026 04:42:53 Africa/Johannesburg] PHP Deprecated:  htmlspecialchars(): Passing null to parameter #1 ($string) of type string is deprecated in /home/ahnwebde/public_html/vehicle_stripping_edit.php on line 170
+[10-Mar-2026 04:42:53 Africa/Johannesburg] PHP Deprecated:  htmlspecialchars(): Passing null to parameter #1 ($string) of type string is deprecated in /home/ahnwebde/public_html/vehicle_stripping_edit.php on line 176
