@@ -14,7 +14,7 @@ $cntStrip    = $conn->query("SELECT COUNT(*) AS c FROM vehicle_stripped_parts")-
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Main Dashboard</title>
+<title>Autowage Dashboard</title>
 
 <style>
     body {
@@ -86,7 +86,7 @@ $cntStrip    = $conn->query("SELECT COUNT(*) AS c FROM vehicle_stripped_parts")-
 
 <div class="dashboard-wrap">
 
-    <h1>Main Dashboard</h1>
+    <h1>Main Dashboard TEST</h1>
     <p>Clean rebuild version. If you see this, the project is connected correctly.</p>
 
     <!-- ===================== FIRST ROW ===================== -->
