@@ -118,7 +118,7 @@ document.querySelectorAll('.dropdown').forEach(d => d.classList.remove('open'));
 
 <nav>
 
-<a href="dashboard.php">Dashboard</a>
+<a href="main_dashboard.php">Dashboard</a>
 
 <a href="vehicles_list.php">Vehicles</a>
 
