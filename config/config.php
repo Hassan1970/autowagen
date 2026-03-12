@@ -1,4 +1,3 @@
-```php
 <?php
 /**
  * Autowagen Master - Database Configuration
@@ -19,7 +18,11 @@ ini_set('display_errors', 1);
 
 $db_host = "localhost";
 
-if ($_SERVER['SERVER_NAME'] == 'localhost') {
+/* Detect LOCAL server */
+if (
+    $_SERVER['SERVER_NAME'] === 'localhost' ||
+    $_SERVER['SERVER_NAME'] === '127.0.0.1'
+) {
 
     // LOCAL XAMPP DATABASE
     $db_user = "root";
@@ -41,7 +44,9 @@ if ($_SERVER['SERVER_NAME'] == 'localhost') {
 
 $conn = new mysqli($db_host, $db_user, $db_pass, $db_name);
 
+/* Check connection */
 if ($conn->connect_error) {
+
     die(
         "Database connection failed<br>" .
         "HOST: {$db_host}<br>" .
@@ -49,18 +54,29 @@ if ($conn->connect_error) {
         "DB: {$db_name}<br>" .
         "ERROR: " . $conn->connect_error
     );
+
 }
 
-$conn->set_charset("utf8mb4");
+/* =====================================================
+   CHARACTER SET (VERY IMPORTANT)
+===================================================== */
+
+if (!$conn->set_charset("utf8mb4")) {
+    die("Error loading character set utf8mb4: " . $conn->error);
+}
 
 /* =====================================================
    GLOBAL HELPER FUNCTIONS
 ===================================================== */
 
 if (!function_exists('h')) {
+
     function h($value) {
+
         return htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8');
+
     }
+
 }
 
 /* =====================================================
@@ -68,7 +84,9 @@ if (!function_exists('h')) {
 ===================================================== */
 
 if (session_status() === PHP_SESSION_NONE) {
+
     session_start();
+
 }
 
 /* =====================================================

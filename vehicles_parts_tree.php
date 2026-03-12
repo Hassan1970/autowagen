@@ -18,19 +18,7 @@ ORDER BY v.stock_code ASC
 $result = $conn->query($sql);
 ?>
 
-<!DOCTYPE html>
-<html>
-<head>
-
-<title>Vehicle Parts Tree</title>
-
 <style>
-
-body{
-background:#000;
-color:#fff;
-font-family:Arial;
-}
 
 .wrap{
 width:90%;
@@ -66,9 +54,20 @@ border-bottom:1px solid #222;
 
 /* STOCK COLORS */
 
-.qty-zero{color:#ff4444;font-weight:bold;}
-.qty-last{color:#ffcc00;font-weight:bold;}
-.qty-good{color:#00ff88;font-weight:bold;}
+.qty-zero{
+color:#ff4444;
+font-weight:bold;
+}
+
+.qty-last{
+color:#ffcc00;
+font-weight:bold;
+}
+
+.qty-good{
+color:#00ff88;
+font-weight:bold;
+}
 
 .location{
 color:#888;
@@ -82,40 +81,35 @@ margin-left:10px;
 
 function toggleParts(vehicle){
 
-let box=document.getElementById("parts_"+vehicle);
+let box = document.getElementById("parts_" + vehicle);
 
-if(box.style.display==="block"){
-box.style.display="none";
+if(box.style.display === "block"){
+box.style.display = "none";
 return;
 }
 
-fetch("vehicle_parts_api.php?vehicle="+vehicle)
-.then(r=>r.json())
-.then(rows=>{
+fetch("vehicle_parts_api.php?vehicle=" + vehicle)
+.then(r => r.json())
+.then(rows => {
 
-let html="";
+let html = "";
 
-rows.forEach(p=>{
+rows.forEach(p => {
 
-let icon="🟢";
-
-if(p.qty==0) icon="🔴";
-if(p.qty==1) icon="🟡";
-
-html+=`
+html += `
 <div class="part">
 ${p.part_name}
 <span class="location">${p.location}</span>
 <span class="${p.qty_class}">
-${icon} ${p.qty}
+${p.qty}
 </span>
 </div>
 `;
 
 });
 
-box.innerHTML=html;
-box.style.display="block";
+box.innerHTML = html;
+box.style.display = "block";
 
 });
 
@@ -123,36 +117,29 @@ box.style.display="block";
 
 </script>
 
-</head>
-
-<body>
-
 <div class="wrap">
 
 <h2>Vehicle Parts Tree</h2>
 
-<?php while($row=$result->fetch_assoc()): ?>
+<?php while($row = $result->fetch_assoc()): ?>
 
 <div
 class="vehicle"
-onclick="toggleParts('<?= $row['stock_code'] ?>')"
+onclick="toggleParts('<?= htmlspecialchars($row['stock_code']) ?>')"
 >
 
 <?= htmlspecialchars($row['stock_code']) ?>
-(<?= $row['total_parts'] ?> parts)
+(<?= (int)$row['total_parts'] ?> parts)
 
 </div>
 
 <div
 class="parts"
-id="parts_<?= $row['stock_code'] ?>"
+id="parts_<?= htmlspecialchars($row['stock_code']) ?>"
 ></div>
 
 <?php endwhile; ?>
 
 </div>
-
-</body>
-</html>
 
 <?php include __DIR__."/includes/footer.php"; ?>

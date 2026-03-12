@@ -6,30 +6,44 @@ if (!isset($page_title)) {
 <!DOCTYPE html>
 <html lang="en">
 <head>
+
 <meta charset="UTF-8">
-<title><?= htmlspecialchars($page_title ?? '') ?></title>
+<title><?= htmlspecialchars($page_title) ?></title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 <style>
 
+/* ===============================
+   GLOBAL
+=================================*/
+
 body{
 margin:0;
-font-family:Arial,Helvetica,sans-serif;
+font-family:Arial, Helvetica, sans-serif;
 background:#000;
 color:#fff;
 }
 
+/* ===============================
+   HEADER
+=================================*/
+
 header{
 background:#000;
-border-bottom:2px solid red;
+border-bottom:2px solid #cc0000;
 }
 
 nav{
 display:flex;
+flex-wrap:wrap;
 gap:18px;
 padding:12px 20px;
 align-items:center;
 }
+
+/* ===============================
+   NAV LINKS
+=================================*/
 
 nav a{
 color:#fff;
@@ -44,10 +58,16 @@ background:#b00000;
 border-radius:4px;
 }
 
-/* DROPDOWN */
+/* ===============================
+   DROPDOWN
+=================================*/
 
 .dropdown{
 position:relative;
+}
+
+.dropdown > a{
+user-select:none;
 }
 
 .dropdown-menu{
@@ -56,9 +76,10 @@ position:absolute;
 top:38px;
 left:0;
 background:#111;
-border:1px solid red;
+border:1px solid #cc0000;
 min-width:230px;
 z-index:9999;
+box-shadow:0 4px 8px rgba(0,0,0,0.4);
 }
 
 .dropdown-menu a{
@@ -74,34 +95,59 @@ background:#b00000;
 display:block;
 }
 
+/* ===============================
+   MOBILE
+=================================*/
+
+@media (max-width:900px){
+
+nav{
+flex-direction:column;
+align-items:flex-start;
+}
+
+.dropdown-menu{
+position:relative;
+top:0;
+border:none;
+}
+
+}
+
 </style>
 
 <script>
 
 document.addEventListener('DOMContentLoaded', function () {
 
-document.querySelectorAll('.dropdown > a').forEach(function (trigger) {
+const dropdowns = document.querySelectorAll('.dropdown');
 
-trigger.addEventListener('click', function (e) {
+dropdowns.forEach(function(dropdown){
+
+const trigger = dropdown.querySelector('a');
+
+trigger.addEventListener('click', function(e){
 
 e.preventDefault();
 
-let parent = this.parentElement;
-
-document.querySelectorAll('.dropdown').forEach(d => {
-if (d !== parent) d.classList.remove('open');
+dropdowns.forEach(function(d){
+if(d !== dropdown){
+d.classList.remove('open');
+}
 });
 
-parent.classList.toggle('open');
+dropdown.classList.toggle('open');
 
 });
 
 });
 
-document.addEventListener('click', function (e) {
+document.addEventListener('click', function(e){
 
-if (!e.target.closest('.dropdown')) {
-document.querySelectorAll('.dropdown').forEach(d => d.classList.remove('open'));
+if(!e.target.closest('.dropdown')){
+dropdowns.forEach(function(d){
+d.classList.remove('open');
+});
 }
 
 });
@@ -124,11 +170,11 @@ document.querySelectorAll('.dropdown').forEach(d => d.classList.remove('open'));
 
 <a href="oem_purchase_add.php">OEM Parts</a>
 
-<!-- 3RD PARTY DROPDOWN -->
+<!-- 3RD PARTY PARTS -->
 
 <div class="dropdown">
 
-<a>3rd Party Parts ▾</a>
+<a href="#">3rd Party Parts ▾</a>
 
 <div class="dropdown-menu">
 
@@ -146,7 +192,7 @@ document.querySelectorAll('.dropdown').forEach(d => d.classList.remove('open'));
 
 <div class="dropdown">
 
-<a>Stripped Inventory ▾</a>
+<a href="#">Stripped Inventory ▾</a>
 
 <div class="dropdown-menu">
 
@@ -166,7 +212,7 @@ document.querySelectorAll('.dropdown').forEach(d => d.classList.remove('open'));
 
 <div class="dropdown">
 
-<a>Yard Locations ▾</a>
+<a href="#">Yard Locations ▾</a>
 
 <div class="dropdown-menu">
 
