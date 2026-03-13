@@ -1,7 +1,7 @@
 <?php
 
 $baseDir = __DIR__;
-$outputFile = __DIR__ . "/all_php_files20022026.txt";
+$outputFile = __DIR__ . "/all_php_files12032026.txt";
 
 $foldersToScan = [
     $baseDir,
