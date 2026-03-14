@@ -1,14 +1,14 @@
 <?php
 require_once __DIR__ . "/config/config.php";
 
-$stock = $_GET['stock_code'] ?? '';
-$part  = $_GET['part_name'] ?? '';
-$search = $_GET['search'] ?? '';
-$level = $_GET['level'] ?? '';
-$parent = $_GET['parent'] ?? '';
+$stock=$_GET['stock_code'] ?? '';
+$part=$_GET['part_name'] ?? '';
+$search=$_GET['search'] ?? '';
+$level=$_GET['level'] ?? '';
+$parent=$_GET['parent'] ?? '';
 
 if(!$stock){
-    exit;
+exit;
 }
 
 
@@ -16,25 +16,17 @@ if(!$stock){
 
 if($part){
 
-$stmt = $conn->prepare("
-SELECT
-vsp.part_name,
-vsp.qty,
-vsp.location,
-vsp.position_code,
-pi.image_path
-FROM vehicle_stripped_parts vsp
-LEFT JOIN part_images pi
-ON vsp.part_name = pi.part_name
-WHERE vsp.stock_code=? AND vsp.part_name=?
+$stmt=$conn->prepare("
+SELECT part_name,qty,location,position_code
+FROM vehicle_stripped_parts
+WHERE stock_code=? AND part_name=?
 ");
 
 $stmt->bind_param("ss",$stock,$part);
 $stmt->execute();
-$res = $stmt->get_result();
+$res=$stmt->get_result();
 
 echo "<table class='parts-table'>";
-
 echo "<tr>
 <th>Part</th>
 <th>Qty</th>
@@ -50,18 +42,6 @@ echo "<td>".$row['qty']."</td>";
 echo "<td>".$row['location']."</td>";
 echo "<td>".$row['position_code']."</td>";
 echo "</tr>";
-
-/* IMAGE DISPLAY */
-
-if(!empty($row['image_path'])){
-
-echo "<tr>";
-echo "<td colspan='4' style='text-align:center;padding:15px'>";
-echo "<img src='".$row['image_path']."' style='max-width:300px'>";
-echo "</td>";
-echo "</tr>";
-
-}
 
 }
 
