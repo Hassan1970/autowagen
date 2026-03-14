@@ -114,6 +114,40 @@ border:none;
 
 }
 
+/* ===============================
+   EPC DIAGRAM HOTSPOTS
+   (New Feature)
+=================================*/
+
+.diagram-container{
+position:relative;
+display:inline-block;
+}
+
+.diagram-img{
+max-width:600px;
+border:2px solid #cc0000;
+}
+
+.hotspot{
+position:absolute;
+background:#cc0000;
+color:white;
+border-radius:50%;
+width:24px;
+height:24px;
+text-align:center;
+line-height:24px;
+font-size:12px;
+cursor:pointer;
+font-weight:bold;
+}
+
+.hotspot:hover{
+background:#ff0000;
+transform:scale(1.1);
+}
+
 </style>
 
 <script>
