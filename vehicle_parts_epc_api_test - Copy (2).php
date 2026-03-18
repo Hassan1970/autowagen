@@ -1,6 +1,4 @@
 <?php
-/* This is vehicle_parts_epc_api_test.php  working */ 
-
 require_once __DIR__ . "/config/config.php";
 
 $stock  = $_GET['stock_code'] ?? '';

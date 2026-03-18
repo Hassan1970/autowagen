@@ -1,6 +1,4 @@
 <?php
-/* This is vehicle_parts_tree_test.php  working */ 
-
 require_once __DIR__ . "/config/config.php";
 include __DIR__ . "/includes/header.php";
 

@@ -2,9 +2,6 @@
 require_once __DIR__ . '/config/config.php';
 include __DIR__ . '/includes/header.php';
 
-/* ===== ADDITION 1 : EPC SELL PREFILL ===== */
-$prefill_part = $_GET['part'] ?? '';
-
 $invoice_number = 'INV-' . date('Ymd-His');
 $invoice_date   = date('Y-m-d');
 ?>
@@ -516,9 +513,13 @@ let typeDisplay="";
 switch(SELECTED_ITEM.source){
 
 case "STRIP": typeDisplay="STRIPPED"; break;
+
 case "TP": typeDisplay="THIRD-PARTY"; break;
+
 case "OEM": typeDisplay="OEM"; break;
+
 case "NEW": typeDisplay="REPLACEMENT"; break;
+
 default: typeDisplay=SELECTED_ITEM.source;
 
 }
@@ -546,31 +547,6 @@ document.getElementById("item_qty").value=1;
 document.getElementById("item_search").focus();
 
 }
-
-
-/* ===== ADDITION 2 : EPC AUTO SEARCH ===== */
-
-document.addEventListener("DOMContentLoaded", function(){
-
-let part = "<?= addslashes($prefill_part) ?>";
-
-if(part){
-
-let box = document.getElementById("item_search");
-
-if(box){
-
-box.value = part;
-
-setTimeout(function(){
-box.dispatchEvent(new Event("keyup"));
-},200);
-
-}
-
-}
-
-});
 
 
 function removeRow(btn){
