@@ -24,6 +24,11 @@ background:#000;
 color:#fff;
 }
 
+/* PAGE CONTENT WRAPPER */
+.main-content{
+padding:20px;
+}
+
 /* ===============================
    HEADER
 =================================*/
@@ -114,44 +119,9 @@ border:none;
 
 }
 
-/* ===============================
-   EPC DIAGRAM HOTSPOTS
-   (New Feature)
-=================================*/
-
-.diagram-container{
-position:relative;
-display:inline-block;
-}
-
-.diagram-img{
-max-width:600px;
-border:2px solid #cc0000;
-}
-
-.hotspot{
-position:absolute;
-background:#cc0000;
-color:white;
-border-radius:50%;
-width:24px;
-height:24px;
-text-align:center;
-line-height:24px;
-font-size:12px;
-cursor:pointer;
-font-weight:bold;
-}
-
-.hotspot:hover{
-background:#ff0000;
-transform:scale(1.1);
-}
-
 </style>
 
 <script>
-
 document.addEventListener('DOMContentLoaded', function () {
 
 const dropdowns = document.querySelectorAll('.dropdown');
@@ -187,7 +157,6 @@ d.classList.remove('open');
 });
 
 });
-
 </script>
 
 </head>
@@ -205,59 +174,35 @@ d.classList.remove('open');
 <a href="oem_purchase_add.php">OEM Parts</a>
 
 <!-- 3RD PARTY PARTS -->
-
 <div class="dropdown">
-
 <a href="#">3rd Party Parts ▾</a>
-
 <div class="dropdown-menu">
-
 <a href="third_party_entry.php">Add 3rd Party Part</a>
-
 <a href="third_party_list.php">3rd Party Parts List</a>
-
 </div>
-
 </div>
 
 <a href="suppliers_list.php">Suppliers</a>
 
 <!-- STRIPPED INVENTORY -->
-
 <div class="dropdown">
-
 <a href="#">Stripped Inventory ▾</a>
-
 <div class="dropdown-menu">
-
 <a href="stripped_list.php">Inventory List</a>
-
 <a href="inventory.php">Master Inventory</a>
-
 <a href="vehicles_parts_tree.php">Vehicle Tree</a>
-
 <a href="low_stock_alerts.php">Low Stock Alerts</a>
-
 </div>
-
 </div>
 
 <!-- YARD LOCATIONS -->
-
 <div class="dropdown">
-
 <a href="#">Yard Locations ▾</a>
-
 <div class="dropdown-menu">
-
 <a href="yard_locations.php">View Locations</a>
-
 <a href="yard_locations_manage.php">Manage Locations</a>
-
 <a href="yard_map.php">Yard Map</a>
-
 </div>
-
 </div>
 
 <a href="pos_dashboard.php">POS / Sales</a>
@@ -266,8 +211,13 @@ d.classList.remove('open');
 
 <a href="sales_report.php">Sales Report</a>
 
+<!-- INVENTORY -->
 <a href="inventory_dashboard.php">Inventory Dashboard</a>
+<a href="stock_history.php">Stock History</a>
 
 </nav>
 
 </header>
+
+<!-- ✅ PAGE CONTENT START -->
+<div class="main-content"></div>

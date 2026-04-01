@@ -5,9 +5,10 @@ ini_set('display_errors', 1);
 // =======================
 // DB CONNECTION
 // =======================
-$conn = new mysqli("localhost", "root", "", "autowagen_master_clean");
+$conn = new mysqli("localhost", "root", "", "autowagen");
+
 if ($conn->connect_error) {
-    die("Database connection failed");
+    die("Database connection failed: " . $conn->connect_error);
 }
 
 // =======================
@@ -33,26 +34,51 @@ ORDER BY c.id, s.id, t.id, cmp.id
 $result = $conn->query($sql);
 
 // =======================
-// BUILD TREE ARRAY
+// BUILD TREE
 // =======================
 $tree = [];
 
 while ($row = $result->fetch_assoc()) {
 
-    $tree[$row['category_id']]['name'] = $row['category_name'];
+    $catId = $row['category_id'];
+    $subId = $row['subcategory_id'];
+    $typeId = $row['type_id'];
+    $compId = $row['component_id'];
 
-    $tree[$row['category_id']]['sub'][$row['subcategory_id']]['name']
-        = $row['subcategory_name'];
+    // CATEGORY
+    if (!isset($tree[$catId])) {
+        $tree[$catId] = [
+            'name' => $row['category_name'],
+            'sub' => []
+        ];
+    }
 
-    $tree[$row['category_id']]['sub'][$row['subcategory_id']]['type'][$row['type_id']]['name']
-        = $row['type_name'];
+    // SUBCATEGORY
+    if (!isset($tree[$catId]['sub'][$subId])) {
+        $tree[$catId]['sub'][$subId] = [
+            'name' => $row['subcategory_name'],
+            'type' => []
+        ];
+    }
 
-    if ($row['component_id']) {
-        $tree[$row['category_id']]['sub'][$row['subcategory_id']]['type'][$row['type_id']]['comp'][$row['component_id']]
-            = $row['component_name'];
+    // TYPE
+    if (!isset($tree[$catId]['sub'][$subId]['type'][$typeId])) {
+        $tree[$catId]['sub'][$subId]['type'][$typeId] = [
+            'name' => $row['type_name'],
+            'comp' => []
+        ];
+    }
+
+    // COMPONENT
+    if ($compId !== null) {
+        $tree[$catId]['sub'][$subId]['type'][$typeId]['comp'][] = [
+            'id' => $compId,
+            'name' => $row['component_name']
+        ];
     }
 }
 ?>
+
 <!DOCTYPE html>
 <html>
 <head>
@@ -61,80 +87,99 @@ while ($row = $result->fetch_assoc()) {
 
 <style>
 body {
-    font-family: Consolas, "Courier New", monospace;
+    font-family: Consolas, monospace;
     background: #f6f6f6;
-    padding: 20px;
+    padding: 15px;
+    font-size: 13px;
 }
+
 h2 {
     margin-bottom: 10px;
 }
+
 button {
-    margin-bottom: 15px;
+    margin: 5px 5px 10px 0;
     padding: 6px 12px;
     cursor: pointer;
 }
+
 ul {
     list-style: none;
-    padding-left: 18px;
+    padding-left: 15px;
     border-left: 1px dashed #bbb;
 }
+
 li {
-    margin: 4px 0;
+    margin: 3px 0;
 }
+
 .toggle {
     cursor: pointer;
     font-weight: bold;
 }
+
 .component {
     color: #222;
 }
+
 .hidden {
     display: none;
 }
 </style>
 
 <script>
+
 // =======================
-// TOGGLE TREE NODES
+// TOGGLE
 // =======================
 function toggle(id) {
     document.getElementById(id).classList.toggle('hidden');
 }
 
 // =======================
-// EXPORT VISIBLE TREE TO PDF
+// EXPAND ALL
+// =======================
+function expandAll() {
+    document.querySelectorAll('.hidden').forEach(el => {
+        el.classList.remove('hidden');
+    });
+}
+
+// =======================
+// COLLAPSE ALL
+// =======================
+function collapseAll() {
+    document.querySelectorAll('#epcTree ul').forEach(el => {
+        el.classList.add('hidden');
+    });
+}
+
+// =======================
+// EXPORT TO PDF
 // =======================
 function exportTreeToPDF() {
 
     const tree = document.getElementById("epcTree").cloneNode(true);
 
-    // Remove hidden nodes
-    tree.querySelectorAll('.hidden').forEach(el => el.remove());
+    tree.querySelectorAll('.hidden').forEach(el => {
+        el.classList.remove('hidden');
+    });
 
-    const win = window.open("", "", "width=900,height=700");
+    const win = window.open("", "", "width=1000,height=800");
 
     win.document.write(`
         <html>
         <head>
-            <title>EPC Structure Report</title>
+            <title>EPC Report</title>
             <style>
-                body {
-                    font-family: Consolas, "Courier New", monospace;
-                    white-space: pre;
-                    padding: 20px;
-                }
-                ul {
-                    list-style: none;
-                    padding-left: 18px;
-                }
-                li {
-                    margin: 4px 0;
-                }
+                body { font-family: Arial; font-size: 10px; }
+                ul { list-style: none; padding-left: 10px; }
+                li { margin: 1px 0; }
             </style>
         </head>
         <body>
             <h2>EPC STRUCTURE REPORT</h2>
-            <p>Generated: ${new Date().toLocaleString()}</p>
+            <p>${new Date().toLocaleString()}</p>
         </body>
         </html>
     `);
@@ -146,14 +191,85 @@ function exportTreeToPDF() {
         win.print();
     }, 500);
 }
+
+// =======================
+// EXPORT TO EXCEL (NEW)
+// =======================
+function exportToExcel() {
+
+    let rows = [];
+    rows.push(["Category", "Subcategory", "Type", "Component ID", "Component Name"]);
+
+    const tree = <?php echo json_encode($tree); ?>;
+
+    for (const catId in tree) {
+        const cat = tree[catId];
+
+        for (const subId in cat.sub) {
+            const sub = cat.sub[subId];
+
+            for (const typeId in sub.type) {
+                const type = sub.type[typeId];
+
+                if (type.comp.length > 0) {
+                    type.comp.forEach(comp => {
+                        rows.push([
+                            cat.name,
+                            sub.name,
+                            type.name,
+                            comp.id,
+                            comp.name
+                        ]);
+                    });
+                } else {
+                    rows.push([
+                        cat.name,
+                        sub.name,
+                        type.name,
+                        "",
+                        "(No components)"
+                    ]);
+                }
+            }
+        }
+    }
+
+    let csvContent = "data:application/vnd.ms-excel;charset=utf-8,";
+
+    rows.forEach(row => {
+        csvContent += row.join("\t") + "\n";
+    });
+
+    const encodedUri = encodeURI(csvContent);
+
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "epc_structure.xls");
+
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+// =======================
+// AUTO EXPAND
+// =======================
+window.onload = function() {
+    expandAll();
+};
+
 </script>
+
 </head>
 
 <body>
 
 <h2>EPC Navigation Tree</h2>
 
-<button onclick="exportTreeToPDF()">📄 Export Visible Tree to PDF</button>
+<button onclick="exportTreeToPDF()">📄 Export to PDF</button>
+<button onclick="exportToExcel()">📊 Export to Excel</button>
+<button onclick="expandAll()">⬇ Expand All</button>
+<button onclick="collapseAll()">⬆ Collapse All</button>
 
 <ul id="epcTree">
 <?php foreach ($tree as $catId => $cat): ?>
@@ -178,9 +294,9 @@ function exportTreeToPDF() {
 
                         <ul id="type<?= $typeId ?>" class="hidden">
                         <?php if (!empty($type['comp'])): ?>
-                            <?php foreach ($type['comp'] as $compId => $compName): ?>
+                            <?php foreach ($type['comp'] as $comp): ?>
                                 <li class="component">
-                                    • Component [ID: <?= $compId ?>] <?= htmlspecialchars($compName) ?>
+                                    • Component [ID: <?= $comp['id'] ?>] <?= htmlspecialchars($comp['name']) ?>
                                 </li>
                             <?php endforeach; ?>
                         <?php else: ?>

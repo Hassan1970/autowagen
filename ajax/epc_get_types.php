@@ -11,6 +11,12 @@ $sql = "
 ";
 
 $stmt = $conn->prepare($sql);
+
+if (!$stmt) {
+    echo json_encode(['results' => []]);
+    exit;
+}
+
 $stmt->bind_param("i", $subcategory_id);
 $stmt->execute();
 
@@ -22,5 +28,6 @@ while ($row = $res->fetch_assoc()) {
 }
 
 header('Content-Type: application/json');
-echo json_encode($data);
+echo json_encode(['results' => $data]); // ✅ FIX
+
 exit;

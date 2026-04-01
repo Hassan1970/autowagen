@@ -1,164 +1,254 @@
 <?php
 require_once __DIR__ . "/config/config.php";
-header('Content-Type: application/json');
 
-$q = trim($_GET['q'] ?? '');
-if ($q === '') {
-    echo json_encode([]);
+/* ================= AJAX MODE TEST ================= */
+if (isset($_GET['q'])) {
+
+    header('Content-Type: application/json');
+
+    $q = trim($_GET['q']);
+    if ($q === '') {
+        echo json_encode([]);
+        exit;
+    }
+
+    $search = "%$q%";
+    $results = [];
+
+    function pushRow(&$results, $row, $priority)
+    {
+        $row['priority'] = $priority;
+
+        $vehicleParts = array_filter([
+            $row['make'] ?? '',
+            $row['model'] ?? '',
+            $row['year'] ?? ''
+        ]);
+
+        $row['vehicle_name'] = implode(' ', $vehicleParts);
+
+        if (!isset($row['vehicle_stock_code'])) {
+            $row['vehicle_stock_code'] = $row['code'] ?? '';
+        }
+
+        $results[] = $row;
+    }
+
+    /* STRIPPED */
+    $stmt = $conn->prepare("
+    SELECT
+    vsp.id,
+    vsp.part_name AS name,
+    vsp.stock_code AS vehicle_stock_code,
+    vsp.stock_code AS code,
+    IFNULL(vsp.qty,1) AS qty,
+    0 AS price,
+    v.make,
+    v.model,
+    v.year,
+    'STRIP' AS source
+    FROM vehicle_stripped_parts vsp
+    LEFT JOIN vehicles v ON v.id = vsp.vehicle_id
+    WHERE vsp.part_name LIKE ?
+    ");
+    $stmt->bind_param("s", $search);
+    $stmt->execute();
+    $res = $stmt->get_result();
+    while ($r = $res->fetch_assoc()) pushRow($results,$r,1);
+    $stmt->close();
+
+    /* OEM */
+    $stmt = $conn->prepare("
+    SELECT
+    id,
+    part_name AS name,
+    CONCAT('OEM-',id) AS code,
+    '' AS vehicle_stock_code,
+    stock_qty AS qty,
+    selling_price AS price,
+    '' AS make,
+    '' AS model,
+    '' AS year,
+    'OEM' AS source
+    FROM oem_parts
+    WHERE stock_qty > 0 AND part_name LIKE ?
+    ");
+    $stmt->bind_param("s", $search);
+    $stmt->execute();
+    $res = $stmt->get_result();
+    while ($r = $res->fetch_assoc()) pushRow($results,$r,2);
+    $stmt->close();
+
+    /* TP */
+    $stmt = $conn->prepare("
+    SELECT
+    id,
+    description AS name,
+    CONCAT('TP-',id) AS code,
+    '' AS vehicle_stock_code,
+    1 AS qty,
+    selling_price AS price,
+    '' AS make,
+    '' AS model,
+    '' AS year,
+    'TP' AS source
+    FROM third_party_parts
+    WHERE stock_status='IN_STOCK' AND description LIKE ?
+    ");
+    $stmt->bind_param("s", $search);
+    $stmt->execute();
+    $res = $stmt->get_result();
+    while ($r = $res->fetch_assoc()) pushRow($results,$r,3);
+    $stmt->close();
+
+    /* NEW */
+    $stmt = $conn->prepare("
+    SELECT
+    id,
+    part_name AS name,
+    CONCAT('NEW-',id) AS code,
+    '' AS vehicle_stock_code,
+    stock_qty AS qty,
+    selling_price AS price,
+    '' AS make,
+    '' AS model,
+    '' AS year,
+    'NEW' AS source
+    FROM replacement_parts
+    WHERE stock_qty > 0 AND part_name LIKE ?
+    ");
+    $stmt->bind_param("s", $search);
+    $stmt->execute();
+    $res = $stmt->get_result();
+    while ($r = $res->fetch_assoc()) pushRow($results,$r,4);
+    $stmt->close();
+
+    usort($results,function($a,$b){
+        if($a['priority']!=$b['priority']) return $a['priority'] <=> $b['priority'];
+        return $b['qty'] <=> $a['qty'];
+    });
+
+    echo json_encode(array_slice($results,0,50));
     exit;
 }
+?>
 
-$search = "%$q%";
-$results = [];
+<!DOCTYPE html>
+<html>
+<head>
+<title>Search Item</title>
 
-function pushRow(&$results, $row, $priority)
-{
-    $row['priority'] = $priority;
+<style>
+body{background:#000;color:#fff;font-family:Arial;padding:15px;}
 
-    // Build clean vehicle_name
-    $vehicleParts = array_filter([
-        $row['make'] ?? '',
-        $row['model'] ?? '',
-        $row['year'] ?? ''
-    ]);
-
-    $row['vehicle_name'] = implode(' ', $vehicleParts);
-
-    // Ensure stock code exists
-    if (!isset($row['vehicle_stock_code'])) {
-        $row['vehicle_stock_code'] = $row['code'] ?? '';
-    }
-
-    $results[] = $row;
+input{
+width:100%;
+padding:12px;
+background:#111;
+border:1px solid #333;
+color:#fff;
+margin-bottom:10px;
 }
 
-/* ================= STRIPPED ================= */
-$stmt = $conn->prepare("
-SELECT
-vsp.id,
-vsp.part_name AS name,
-vsp.stock_code AS vehicle_stock_code,
-vsp.stock_code AS code,
-IFNULL(vsp.qty,1) AS qty,
-0 AS price,
-v.make,
-v.model,
-v.year,
-v.variant,
-v.colour,
-'STRIP' AS source
-FROM vehicle_stripped_parts vsp
-LEFT JOIN vehicles v ON v.id = vsp.vehicle_id
-WHERE
-vsp.part_name LIKE ?
-OR vsp.stock_code LIKE ?
-OR v.make LIKE ?
-OR v.model LIKE ?
-LIMIT 25
-");
-
-$stmt->bind_param("ssss", $search, $search, $search, $search);
-$stmt->execute();
-$res = $stmt->get_result();
-while ($r = $res->fetch_assoc()) {
-    pushRow($results, $r, 1);
+#results{
+max-height:500px;
+overflow-y:auto;
+border:1px solid #333;
 }
-$stmt->close();
 
-/* ================= THIRD PARTY ================= */
-$stmt = $conn->prepare("
-SELECT
-id,
-description AS name,
-CONCAT('TP-',id) AS code,
-'' AS vehicle_stock_code,
-1 AS qty,
-selling_price AS price,
-'' AS make,
-'' AS model,
-'' AS year,
-'' AS variant,
-'' AS colour,
-'TP' AS source
-FROM third_party_parts
-WHERE stock_status='IN_STOCK'
-AND (description LIKE ? OR CONCAT('TP-',id) LIKE ?)
-LIMIT 25
-");
-
-$stmt->bind_param("ss", $search, $search);
-$stmt->execute();
-$res = $stmt->get_result();
-while ($r = $res->fetch_assoc()) {
-    pushRow($results, $r, 2);
+.search-item{
+padding:10px;
+border-bottom:1px solid #222;
+cursor:pointer;
 }
-$stmt->close();
 
-/* ================= OEM ================= */
-$stmt = $conn->prepare("
-SELECT
-id,
-part_name AS name,
-CONCAT('OEM-',id) AS code,
-'' AS vehicle_stock_code,
-stock_qty AS qty,
-selling_price AS price,
-'' AS make,
-'' AS model,
-'' AS year,
-'' AS variant,
-'' AS colour,
-'OEM' AS source
-FROM oem_parts
-WHERE stock_qty > 0
-AND (part_name LIKE ? OR CONCAT('OEM-',id) LIKE ?)
-LIMIT 25
-");
-
-$stmt->bind_param("ss", $search, $search);
-$stmt->execute();
-$res = $stmt->get_result();
-while ($r = $res->fetch_assoc()) {
-    pushRow($results, $r, 3);
+.search-item:hover{
+background:#1a1a1a;
 }
-$stmt->close();
 
-/* ================= NEW ================= */
-$stmt = $conn->prepare("
-SELECT
-id,
-part_name AS name,
-CONCAT('NEW-',id) AS code,
-'' AS vehicle_stock_code,
-stock_qty AS qty,
-selling_price AS price,
-'' AS make,
-'' AS model,
-'' AS year,
-'' AS variant,
-'' AS colour,
-'NEW' AS source
-FROM replacement_parts
-WHERE stock_qty > 0
-AND (part_name LIKE ? OR CONCAT('NEW-',id) LIKE ?)
-LIMIT 25
-");
+/* COLORS */
+.SRC_STRIP{color:#ff9933;}
+.SRC_TP{color:#33cc33;}
+.SRC_OEM{color:#4da6ff;}
+.SRC_NEW{color:#cc66ff;}
+</style>
+</head>
 
-$stmt->bind_param("ss", $search, $search);
-$stmt->execute();
-$res = $stmt->get_result();
-while ($r = $res->fetch_assoc()) {
-    pushRow($results, $r, 4);
+<body>
+
+<h3>Search Item</h3>
+<input type="text" id="search" placeholder="Type item name...">
+<div id="results"></div>
+
+<script>
+let search = document.getElementById("search");
+let results = document.getElementById("results");
+
+search.addEventListener("keyup", function(){
+
+let q = this.value;
+
+if(q.length < 2){
+results.innerHTML = "";
+return;
 }
-$stmt->close();
 
-/* ================= SORT ================= */
-usort($results, function ($a, $b) {
-    if ($a['priority'] != $b['priority']) {
-        return $a['priority'] <=> $b['priority'];
-    }
-    return $b['qty'] <=> $a['qty'];
+fetch("pos_item_search.php?q="+encodeURIComponent(q))
+.then(r=>r.json())
+.then(rows=>{
+
+results.innerHTML="";
+
+rows.forEach(it=>{
+results.innerHTML += `
+<div class="search-item SRC_${it.source}" onclick='selectItem(${JSON.stringify(it)})'>
+
+<div style="display:flex;justify-content:space-between;align-items:center">
+
+    <div>
+        <b>[${it.source}] ${it.name}</b><br>
+        <small style="color:#888">
+            ${it.vehicle_name || ''} 
+            ${it.vehicle_stock_code ? '| Code: '+it.vehicle_stock_code : ''}
+        </small>
+    </div>
+
+    <div style="text-align:right">
+
+        <div style="
+            background:#111;
+            border-radius:50%;
+            width:26px;
+            height:26px;
+            display:inline-flex;
+            align-items:center;
+            justify-content:center;
+            margin-bottom:5px;
+            font-size:12px;
+        ">
+            ${it.qty}
+        </div>
+
+        <div style="color:#ff9933">
+            R ${parseFloat(it.price || 0).toFixed(2)}
+        </div>
+
+    </div>
+
+</div>
+
+</div>
+`;
 });
 
-/* ================= OUTPUT ================= */
-echo json_encode(array_slice($results, 0, 40));
+});
+});
+
+function selectItem(it){
+window.opener.postMessage({type:"ITEM_SELECTED",item:it},"*");
+window.close();
+}
+</script>
+
+</body>
+</html>

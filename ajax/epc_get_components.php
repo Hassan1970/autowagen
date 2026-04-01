@@ -2,7 +2,7 @@
 require_once __DIR__ . "/../config/config.php";
 
 if (!isset($_GET['type_id'])) {
-    echo json_encode([]);
+    echo json_encode(['results' => []]); // ✅ FIX
     exit;
 }
 
@@ -15,12 +15,17 @@ $stmt = $conn->prepare("
     ORDER BY name ASC
 ");
 
+if (!$stmt) {
+    echo json_encode(['results' => []]);
+    exit;
+}
+
 $stmt->bind_param("i", $type_id);
 $stmt->execute();
 
 $result = $stmt->get_result();
-$data = [];
 
+$data = [];
 while ($row = $result->fetch_assoc()) {
     $data[] = $row;
 }
@@ -28,5 +33,6 @@ while ($row = $result->fetch_assoc()) {
 $stmt->close();
 
 header("Content-Type: application/json");
-echo json_encode($data);
+echo json_encode(['results' => $data]); // ✅ FIX
+
 exit;

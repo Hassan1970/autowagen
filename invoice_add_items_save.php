@@ -1,54 +1,155 @@
 <?php
 require_once __DIR__ . '/config/config.php';
+include __DIR__ . '/includes/header.php';
 
-$invoice_id = $_POST['invoice_id'];
-$part_type  = $_POST['part_type'];
-$part_name  = $_POST['part_name'];
-$cost_price = $_POST['cost_price'];
-$encoded    = encode_cost_secure($cost_price);
-$qty        = $_POST['qty'] ?? 1;
-$notes      = $_POST['notes'] ?? null;
+$invoice_id = intval($_GET['invoice_id'] ?? 0);
+if ($invoice_id <= 0) { die("Invalid invoice ID."); }
 
-// Stripped vehicle (optional)
-$related_vehicle_id = $_POST['related_vehicle_id'] ?? null;
+// Load invoice header
+$inv = $conn->query("
+    SELECT si.*, s.supplier_name 
+    FROM supplier_invoices si
+    LEFT JOIN suppliers s ON s.id = si.supplier_id
+    WHERE si.id = {$invoice_id}
+")->fetch_assoc();
 
-// Category etc.
-$category_id = $_POST['category_id'] ?? null;
-$subcategory_id = $_POST['subcategory_id'] ?? null;
-$type_id = $_POST['type_id'] ?? null;
-$component_id = $_POST['component_id'] ?? null;
+if (!$inv) die("Invoice not found.");
 
-// Insert item
-$stmt = $conn->prepare("
-    INSERT INTO invoice_items 
-    (invoice_id, part_type, part_name, category_id, subcategory_id, type_id, component_id,
-     related_vehicle_id, cost_price, encoded_cost, qty, notes)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-");
+// Load EPC data
+$categories = $conn->query("SELECT * FROM categories ORDER BY name ASC");
+$subcats    = $conn->query("SELECT * FROM subcategories ORDER BY name ASC");
+$types      = $conn->query("SELECT * FROM types ORDER BY name ASC");
+$components = $conn->query("SELECT * FROM components ORDER BY name ASC");
 
-$stmt->bind_param(
-    "issiiiiisdss",
-    $invoice_id, $part_type, $part_name, $category_id, $subcategory_id,
-    $type_id, $component_id, $related_vehicle_id,
-    $cost_price, $encoded, $qty, $notes
-);
-$stmt->execute();
+// Handle form submission
+if ($_SERVER['REQUEST_METHOD']==='POST') {
 
-$item_id = $stmt->insert_id;
+    $part_type     = $_POST['part_type'] ?? '';
+    $category_id   = intval($_POST['category_id'] ?? 0);
+    $subcategory_id= intval($_POST['subcategory_id'] ?? 0);
+    $type_id       = intval($_POST['type_id'] ?? 0);
+    $component_id  = intval($_POST['component_id'] ?? 0);
 
-// Handle photos
-if (!empty($_FILES['photos']['name'][0])) {
-    $folder = "uploads/invoice_items/";
-    if (!is_dir($folder)) mkdir($folder, 0777, true);
+    $part_name     = trim($_POST['part_name'] ?? '');
+    $cost_price    = floatval($_POST['cost_price'] ?? 0);
+    $selling_price = floatval($_POST['selling_price'] ?? 0); // ✅ NEW
+    $encoded_cost  = encode_cost_secure($cost_price);
+    $qty           = intval($_POST['qty'] ?? 1);
+    $notes         = trim($_POST['notes'] ?? '');
 
-    foreach ($_FILES['photos']['name'] as $i => $name) {
-        $tmp = $_FILES['photos']['tmp_name'][$i];
-        $new = time() . "_" . rand(1000,9999) . "_" . $name;
-        move_uploaded_file($tmp, $folder . $new);
+    if ($part_name === '') {
+        echo "<p style='color:#f55;'>Part name is required.</p>";
+    } else {
 
-        $conn->query("INSERT INTO invoice_item_photos (item_id, file_name) VALUES ($item_id, '$new')");
+        $stmt = $conn->prepare("
+            INSERT INTO supplier_invoice_items
+                (invoice_id, part_type, category_id,
+                subcategory_id, type_id, component_id,
+                part_name, cost_price, encoded_cost, qty, notes, selling_price)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ");
+
+        $stmt->bind_param(
+            "isiiiisssisd",
+            $invoice_id,
+            $part_type,
+            $category_id,
+            $subcategory_id,
+            $type_id,
+            $component_id,
+            $part_name,
+            $cost_price,
+            $encoded_cost,
+            $qty,
+            $notes,
+            $selling_price
+        );
+
+        $stmt->execute();
+        $stmt->close();
+
+        echo "<p style='color:#6f6;'>Part added!</p>";
     }
 }
+?>
 
-header("Location: invoice_add_items.php?invoice_id=$invoice_id");
-exit;
+<div class="page-header">
+    <h1>Add Parts to Invoice — <?=h($inv['id'])?></h1>
+    <p>Supplier: <b><?=h($inv['supplier_name'])?></b></p>
+    <p>Invoice Date: <?=h($inv['invoice_date'])?></p>
+</div>
+
+<div style="background:#111;border:1px solid #b00000;padding:20px;border-radius:8px;max-width:900px;">
+
+<form method="post" enctype="multipart/form-data">
+
+    <h3 style="color:#ff3333;">Part Type *</h3>
+    <select name="part_type" required>
+        <option value="">-- Select --</option>
+        <option>OEM (New Original)</option>
+        <option>Replacement (New)</option>
+        <option>Secondhand (Bought-In)</option>
+        <option>Stripped (From Vehicle)</option>
+    </select>
+
+    <h3 style="color:#ff3333;margin-top:20px;">EPC / Location</h3>
+
+    <label>Category</label>
+    <select name="category_id">
+        <option value="">-- Select --</option>
+        <?php while ($r=$categories->fetch_assoc()): ?>
+            <option value="<?=$r['id']?>"><?=$r['name']?></option>
+        <?php endwhile; ?>
+    </select>
+
+    <label>Subcategory</label>
+    <select name="subcategory_id">
+        <option value="">-- Select --</option>
+        <?php while ($r=$subcats->fetch_assoc()): ?>
+            <option value="<?=$r['id']?>"><?=$r['name']?></option>
+        <?php endwhile; ?>
+    </select>
+
+    <label>Type</label>
+    <select name="type_id">
+        <option value="">-- Select --</option>
+        <?php while ($r=$types->fetch_assoc()): ?>
+            <option value="<?=$r['id']?>"><?=$r['name']?></option>
+        <?php endwhile; ?>
+    </select>
+
+    <label>Component</label>
+    <select name="component_id">
+        <option value="">-- Select --</option>
+        <?php while ($r=$components->fetch_assoc()): ?>
+            <option value="<?=$r['id']?>"><?=$r['name']?></option>
+        <?php endwhile; ?>
+    </select>
+
+    <h3 style="color:#ff3333;margin-top:20px;">Part Details</h3>
+
+    <label>Part Name *</label>
+    <input type="text" name="part_name" required>
+
+    <label>Cost Price *</label>
+    <input type="number" name="cost_price" step="0.01">
+
+    <label>Selling Price</label> <!-- ✅ NEW -->
+    <input type="number" name="selling_price" step="0.01">
+
+    <label>Encoded Cost (auto)</label>
+    <input type="text" readonly placeholder="Generated after saving">
+
+    <label>Quantity</label>
+    <input type="number" name="qty" value="1">
+
+    <label>Notes</label>
+    <textarea name="notes" rows="3"></textarea>
+
+    <button class="btn" style="margin-top:15px;">Add Part</button>
+
+</form>
+
+</div>
+
+<?php include __DIR__ . '/includes/footer.php'; ?>

@@ -1,32 +1,24 @@
 <?php
 require_once __DIR__ . '/config/config.php';
 
-/* =====================================================
-   DEBUG MODE (TURN OFF IN PRODUCTION)
-===================================================== */
+/* DEBUG */
 ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
-/* =====================================================
-   VALIDATE REQUEST METHOD
-===================================================== */
+/* METHOD CHECK */
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     die('Invalid request method');
 }
 
-/* =====================================================
-   READ INPUT
-===================================================== */
-$itemsJson = $_POST['items_json'] ?? '';
-$items = json_decode($itemsJson, true);
+/* INPUT */
+$items = json_decode($_POST['items_json'] ?? '', true);
 
 if (!$items) {
     die("JSON ERROR: " . json_last_error_msg());
 }
 
-$grandTotal = isset($_POST['grand_total']) ? (float)$_POST['grand_total'] : 0;
-$amountPaid = isset($_POST['amount_paid']) ? (float)$_POST['amount_paid'] : 0;
+$grandTotal = (float)($_POST['grand_total'] ?? 0);
+$amountPaid = (float)($_POST['amount_paid'] ?? 0);
 
 if (!is_array($items) || count($items) === 0) {
     die('Invalid invoice items');
@@ -36,78 +28,45 @@ if ($grandTotal <= 0) {
     die('Invalid invoice total');
 }
 
-/* =====================================================
-   PAYMENT STATUS
-===================================================== */
+/* STATUS */
 $status = ($amountPaid >= $grandTotal) ? 'paid' : 'unpaid';
 
-/* =====================================================
-   CUSTOMER DATA
-===================================================== */
+/* CUSTOMER */
 $customer_id = null;
 $customer_name = null;
 $customer_phone = null;
 
 if (!empty($_POST['customer_id'])) {
 
-    $stmtCust = $conn->prepare("
-        SELECT id, name, phone
-        FROM customers
-        WHERE id = ?
-        LIMIT 1
-    ");
+    $stmt = $conn->prepare("SELECT id, name, phone FROM customers WHERE id=?");
+    $stmt->bind_param("i", $_POST['customer_id']);
+    $stmt->execute();
+    $res = $stmt->get_result();
 
-    if (!$stmtCust) {
-        die("Customer prepare failed: " . $conn->error);
-    }
-
-    $stmtCust->bind_param("i", $_POST['customer_id']);
-    $stmtCust->execute();
-
-    $resCust = $stmtCust->get_result();
-
-    if ($rowCust = $resCust->fetch_assoc()) {
-
-        $customer_id = (int)$rowCust['id'];
-        $customer_name = $rowCust['name'];
-        $customer_phone = $rowCust['phone'];
+    if ($c = $res->fetch_assoc()) {
+        $customer_id = $c['id'];
+        $customer_name = $c['name'];
+        $customer_phone = $c['phone'];
     }
 
 } else {
-
-    $customer_name = trim($_POST['customer_name'] ?? '');
-    $customer_phone = trim($_POST['customer_phone'] ?? '');
+    $customer_name = $_POST['customer_name'] ?? '';
+    $customer_phone = $_POST['customer_phone'] ?? '';
 }
 
-/* =====================================================
-   START TRANSACTION
-===================================================== */
+/* START TX */
 $conn->begin_transaction();
 
 try {
 
-/* =====================================================
-   INSERT INVOICE HEADER
-===================================================== */
-$stmtInvoice = $conn->prepare("
-    INSERT INTO pos_invoices
-    (
-        total_amount,
-        customer_id,
-        customer_name,
-        customer_phone,
-        status,
-        created_at
-    )
-    VALUES (?, ?, ?, ?, ?, NOW())
+/* INSERT INVOICE */
+$stmt = $conn->prepare("
+INSERT INTO pos_invoices
+(total_amount, customer_id, customer_name, customer_phone, status, created_at)
+VALUES (?, ?, ?, ?, ?, NOW())
 ");
 
-if (!$stmtInvoice) {
-    throw new Exception("Invoice prepare failed: " . $conn->error);
-}
-
-$stmtInvoice->bind_param(
-    "disss",
+$stmt->bind_param("disss",
     $grandTotal,
     $customer_id,
     $customer_name,
@@ -115,58 +74,30 @@ $stmtInvoice->bind_param(
     $status
 );
 
-if (!$stmtInvoice->execute()) {
-    throw new Exception("Invoice insert failed: " . $stmtInvoice->error);
-}
+$stmt->execute();
+$invoiceId = $stmt->insert_id;
 
-$invoiceId = $stmtInvoice->insert_id;
-
-
-/* =====================================================
-   PREPARE ITEM INSERT
-===================================================== */
+/* PREPARE ITEM */
 $stmtItem = $conn->prepare("
-    INSERT INTO pos_invoice_items
-    (
-        invoice_id,
-        part_type,
-        part_id,
-        part_name,
-        vehicle_stock_code,
-        vehicle_name,
-        quantity,
-        price,
-        cost_price,
-        subtotal
-    )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO pos_invoice_items
+(invoice_id, part_type, part_id, part_name, vehicle_stock_code, vehicle_name, quantity, price, cost_price, subtotal)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ");
 
-if (!$stmtItem) {
-    throw new Exception("Item prepare failed: " . $conn->error);
-}
-
-
-/* =====================================================
-   PROCESS ITEMS
-===================================================== */
+/* LOOP ITEMS */
 foreach ($items as $item) {
 
-    /* NORMALIZE TYPE */
-    $type = strtoupper(trim($item['source'] ?? ''));
+    $type = strtoupper($item['source'] ?? '');
 
     if ($type === 'SRC_STRIP') $type = 'STRIP';
     if ($type === 'SRC_OEM')   $type = 'OEM';
     if ($type === 'SRC_TP')    $type = 'TP';
     if ($type === 'SRC_NEW')   $type = 'NEW';
 
-
-    $name  = $item['name'] ?? 'Item';
-    $id    = (int)($item['id'] ?? 0);
-    $qty   = (int)($item['qty'] ?? 0);
-    $price = (float)($item['price'] ?? 0);
-
-    /* NEW FIELDS */
+    $id = (int)$item['id'];
+    $qty = (int)$item['qty'];
+    $price = (float)$item['price'];
+    $name = $item['name'];
     $vehicleCode = $item['vehicle_stock_code'] ?? '';
     $vehicleName = $item['vehicle_name'] ?? '';
 
@@ -176,96 +107,89 @@ foreach ($items as $item) {
 
     $subtotal = $qty * $price;
 
-
     /* MAP TABLE */
     switch ($type) {
 
         case 'OEM':
-            $table='oem_parts';
-            $stockField='stock_qty';
-            $costField='cost_price';
+            $table = 'oem_parts';
+            $stockField = 'stock_qty';
+            $costField = 'cost_price';
         break;
 
         case 'NEW':
-            $table='replacement_parts';
-            $stockField='stock_qty';
-            $costField='cost_price';
+            $table = 'replacement_parts';
+            $stockField = 'stock_qty';
+            $costField = 'cost_price';
         break;
 
         case 'TP':
-            $table='third_party_parts';
-            $stockField='stock_status';
-            $costField='cost_excl';
+            $table = 'third_party_parts';
+            $stockField = 'stock_status';
+            $costField = 'cost_excl';
         break;
 
         case 'STRIP':
-            $table='vehicle_stripped_parts';
-            $stockField='qty';
-            $costField=null;
+            $table = 'vehicle_stripped_parts';
+            $stockField = 'qty';
+            $costField = null;
         break;
 
         default:
-            throw new Exception("Invalid part type: ".$type);
+            throw new Exception("Invalid part type");
     }
 
-
-    /* LOCK STOCK */
+    /* FETCH STOCK */
     if ($costField) {
 
-        $stmtStock=$conn->prepare("
-            SELECT $stockField,$costField
-            FROM $table
-            WHERE id=?
-            FOR UPDATE
+        $stmtStock = $conn->prepare("
+        SELECT $stockField, $costField
+        FROM $table
+        WHERE id=?
+        FOR UPDATE
         ");
 
     } else {
 
-        $stmtStock=$conn->prepare("
-            SELECT $stockField
-            FROM $table
-            WHERE id=?
-            FOR UPDATE
+        $stmtStock = $conn->prepare("
+        SELECT $stockField
+        FROM $table
+        WHERE id=?
+        FOR UPDATE
         ");
     }
 
-    $stmtStock->bind_param("i",$id);
+    $stmtStock->bind_param("i", $id);
     $stmtStock->execute();
+    $resStock = $stmtStock->get_result();
 
-    $resStock=$stmtStock->get_result();
-
-    if(!$rowStock=$resStock->fetch_assoc())
+    if (!$row = $resStock->fetch_assoc()) {
         throw new Exception("Part not found");
+    }
 
+    /* CHECK STOCK */
+    if ($type == 'TP') {
 
-    /* STOCK VALIDATION */
-    if($type=='TP'){
+        $statusCheck = strtoupper(trim($row[$stockField] ?? ''));
 
-        if($rowStock[$stockField]!='IN_STOCK')
+        if ($statusCheck !== 'IN_STOCK') {
             throw new Exception("Third party sold");
+        }
 
-    }else{
+    } else {
 
-        if((int)$rowStock[$stockField]<$qty)
+        if ((int)$row[$stockField] < $qty) {
             throw new Exception("Insufficient stock");
+        }
     }
 
-
-    /* COST CHECK */
-    $cost=0;
-
-    if($costField){
-
-        $cost=(float)$rowStock[$costField];
-
-        if($price<$cost)
-            throw new Exception("Cannot sell below cost");
+    /* COST */
+    $cost = 0;
+    if ($costField) {
+        $cost = (float)$row[$costField];
     }
-
 
     /* INSERT ITEM */
-    $stmtItem->bind_param(
-        "isisssiddd",
+    $stmtItem->bind_param("isisssiddd",
         $invoiceId,
         $type,
         $id,
@@ -280,77 +204,53 @@ foreach ($items as $item) {
 
     $stmtItem->execute();
 
+    /* UPDATE STOCK */
+    if ($type == 'TP') {
 
-    /* =====================================================
-       STOCK UPDATE SECTION
-       UPDATED: 2026-03-05
-       Prevent selling same stripped part twice and
-       improve stripped inventory logic
-    ===================================================== */
+        $u = $conn->prepare("UPDATE $table SET $stockField='SOLD' WHERE id=?");
+        $u->bind_param("i", $id);
+        $u->execute();
 
-    if($type=='TP'){
+    } elseif ($type == 'STRIP') {
 
-        $stmtUpdate=$conn->prepare("
-            UPDATE $table
-            SET $stockField='SOLD'
-            WHERE id=?
-        ");
+        $u = $conn->prepare("UPDATE vehicle_stripped_parts SET qty = qty - ? WHERE id=?");
+        $u->bind_param("ii", $qty, $id);
+        $u->execute();
 
-        $stmtUpdate->bind_param("i",$id);
-        $stmtUpdate->execute();
+    } else {
 
+        $u = $conn->prepare("UPDATE $table SET $stockField = $stockField - ? WHERE id=?");
+        $u->bind_param("ii", $qty, $id);
+        $u->execute();
+
+        /* ✅ STOCK LOG WITH PROFIT DATA */
+        if ($type === 'OEM') {
+
+            $ref = 'POS#'.$invoiceId;
+
+            $log = $conn->prepare("
+            INSERT INTO oem_stock_movements
+            (part_id, movement_type, qty, reference, created_by, selling_price, cost_price)
+            VALUES (?, 'SELL_OUT', ?, ?, 'system', ?, ?)
+            ");
+
+            $log->bind_param("iisdd", $id, $qty, $ref, $price, $cost);
+            $log->execute();
+        }
     }
-    elseif($type=='STRIP'){
-
-        /* reduce stripped qty */
-
-        $stmtUpdate=$conn->prepare("
-            UPDATE vehicle_stripped_parts
-            SET qty = qty - ?
-            WHERE id = ?
-        ");
-
-        $stmtUpdate->bind_param("ii",$qty,$id);
-        $stmtUpdate->execute();
-
-    }
-    else{
-
-        /* OEM + Replacement */
-
-        $stmtUpdate=$conn->prepare("
-            UPDATE $table
-            SET $stockField = $stockField - ?
-            WHERE id = ?
-        ");
-
-        $stmtUpdate->bind_param("ii",$qty,$id);
-        $stmtUpdate->execute();
-
-    }
-
 }
 
-
-/* =====================================================
-   COMMIT
-===================================================== */
+/* COMMIT */
 $conn->commit();
 
-
-/* =====================================================
-   REDIRECT TO PRINT PAGE
-===================================================== */
-header("Location: print_invoice.php?invoice_id=".$invoiceId);
+/* REDIRECT */
+header("Location: print_invoice.php?invoice_id=" . $invoiceId);
 exit;
 
-
-}
-catch(Exception $e){
+} catch (Exception $e) {
 
 $conn->rollback();
-
-die("SYSTEM ERROR:<br>".$e->getMessage());
+die("SYSTEM ERROR:<br>" . $e->getMessage());
 
 }
 ?>
